@@ -36,6 +36,10 @@ int main(int argc, char* argv[])
     char buf[FILE_BUF_SIZE];
     int bytes_read;
     // Consider using fgets
+    while(fgets(buf, FILE_BUF_SIZE, fd))
+    {
+        printf("%s", buf);
+    }
     
     /*
     while((bytes_read = read(fd, buf, sizeof(buf))) != 0)
