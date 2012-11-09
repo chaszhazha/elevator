@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <errno.h>
+#include <fcntl.h>
 
 //**** Guest elevator status*****
 #define WAITING 0
