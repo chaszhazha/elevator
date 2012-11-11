@@ -13,6 +13,9 @@
 //*******************************
 #define FILE_BUF_SIZE 1024
 
+list_t* results;
+
+
 typedef struct
 {
     int floor;
@@ -40,18 +43,42 @@ void calculate_next_floor(elevator_t * e)
 void open(elevator_t *e)
 {
     // First loop through the onboard guests and see if anyone wants to get off, remove them and put them in the restuls lists
-    
+    node_t* cur = e->guests_onboard->head;
+    while(cur != NULL)
+    {
+        guest_t * g = (guest_t*) cur->data;
+        if(g->to == e->floor)
+        {
+            g->off_time = e->cur_time;
+            guest_t* guest_off = malloc(sizeof(guest_t));
+            memcpy(guest_off,cur->data, sizeof(guest_t));
+            list_remove_guest(cur);
+            list_append(results, guest_off);
+        }
+        else
+            cur = cur->next;
+    }
     
     // Then loop through the requests and see if anyone could get on. Since we are already stopping here, we
     // don't really care which direction the guest wants to go. This is will probably save time.
-    
-    
-    
+    node_t* cur = e->guests_waiting->head;
+    while(cur != NULL)
+    {
+        guest_t * g = (guest_t*) cur->data;
+        if(g->from == e->floor)
+        {
+            guest_t* new_guest = malloc(sizeof(guest_t));
+            memcpy(new_guest,cur->data, sizeof(guest_t));
+            list_remove_guest(cur);
+            list_append(e->guests_onboard, new_guest);
+        }
+        else
+            cur = cur->next;
+    }
     e->cur_time +=10;
 }
 
 
-list_t* results;
 int main(int argc, char* argv[])
 {
     if(argc != 2)
@@ -101,7 +128,7 @@ int main(int argc, char* argv[])
         if(time > elevator.cur_time)
         {
             // Calculate the next stop floor based on the requests, at this moment, the elevator has not moved floor yet
-            
+            calculate_next_floor(&elevator);
             // If the next request is long apart in time from the previous one and the elevator needs to stop
             while(elevator.cur_time <= time)
             {
