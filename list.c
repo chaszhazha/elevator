@@ -1,3 +1,8 @@
+/**
+ * Author: Charles
+ * Date: 10, Nov, 2012
+ */
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
