@@ -58,6 +58,6 @@ int list_empty(list_t *list);
 /**
  * Removes the node from the list that it belongs to
  */
-void list_remove_guest(node_t** node);
+void list_remove_guest(list_t*, node_t** node);
 
 #endif

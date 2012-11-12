@@ -20,11 +20,12 @@ typedef struct
     list_t* guests_onboard;
     int next_floor;
 }elevator_t;
-
+void print_guests(elevator_t e);
 
 void calculate_next_floor(elevator_t * e)
 {
-    printf("Calculating next floor\n");
+    printf("Calculating next floor based on info:\n");
+    print_guests(*e);
     if(list_empty(e->guests_onboard) && list_empty(e->guests_waiting))
     {
         e->direction = 0;
@@ -171,14 +172,35 @@ void open_door(elevator_t *e)
             printf("One passenger to floor %d got on after waiting for %d seconds.\n", g->to, e->cur_time - g->request_time);
             guest_t* new_guest = malloc(sizeof(guest_t));
             memcpy(new_guest,(*cur)->data, sizeof(guest_t));
+            
+            node_t* tmp = e->guests_waiting->head;
+            int count = 0;
+            while(tmp != NULL)
+            {
+                count++;
+                tmp = tmp->next;
+            }
+                
+            printf("Before remove, elements: %d\n", count);
+            
+            
             list_remove_guest(cur);
+            count = 0;
+            tmp = e->guests_waiting->head;
+            while(tmp != NULL)
+            {
+                count++;
+                tmp = tmp->next;
+            }
+            printf("After remove, elements:%d\n", count);
             list_append(e->guests_onboard, new_guest);
         }
         else
             *cur = (*cur)->next;
     }
     e->cur_time +=10;
-    
+    if(e->guests_waiting->size != 0)
+        assert(e->guests_waiting->head != NULL);
     printf("\n");
 }
 
@@ -215,7 +237,7 @@ void print_guests(elevator_t e)
         printf("Got on floor %d, going to floor %d\n", g->at, g->to);
         cur = cur->next;
     }
-    printf("          ========= guests waiting ===========         \n");
+    printf("          ========= guests waiting:%d ===========         \n", e.guests_waiting->size);
     cur = e.guests_waiting->head;
     while(cur != NULL)
     {
@@ -316,7 +338,7 @@ int main(int argc, char* argv[])
         guest->off_time = -1;
         list_append(elevator.guests_waiting, guest);
     }
-    print_guests(elevator);
+    //print_guests(elevator);
     // Todo calculate solutions for what's left in the queue
     if(elevator.direction == 0)
     {

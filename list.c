@@ -52,8 +52,10 @@ int list_empty (list_t *list)
 	return list->head == NULL;
 }
 
-void list_remove_guest(node_t** node)
+void list_remove_guest(list_t* list, node_t** node)
 {
+    //TODO: rewrite this function
+    
     (*node)->list->size--;
     node_t * next_node = (*node)->next;
     if((*node)->next != NULL)
@@ -63,10 +65,11 @@ void list_remove_guest(node_t** node)
         (*node)->next = (*node)->next->next;
         free((guest_t*)next_node->data);
         free(next_node);
-        assert((*node)->list != NULL);
+        assert((*node)->list->head != NULL);
     }
     else
     {
+        printf("2\n");
         free((guest_t*)(*node)->data);
         free(*node);
         *node = NULL;
