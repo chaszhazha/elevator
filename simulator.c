@@ -4,6 +4,8 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
+#include <stdint.h>
 #include "list.h"
 
 #define FILE_BUF_SIZE 1024
@@ -24,8 +26,8 @@ void print_guests(elevator_t e);
 
 void calculate_next_floor(elevator_t * e)
 {
-    printf("Calculating next floor based on info:\n");
-    print_guests(*e);
+    //printf("Calculating next floor based on info:\n");
+    //print_guests(*e);
     if(list_empty(e->guests_onboard) && list_empty(e->guests_waiting))
     {
         e->direction = 0;
@@ -127,8 +129,48 @@ void calculate_next_floor(elevator_t * e)
                 e->next_floor = lowest_up_down;
         }
     }
+    //TODO: Now calculate the nearest floor to which the on board guests need to get off over the same direction as the elevator's movement
+    cur = e->guests_onboard->head;
+    int highest_down = -1, lowest_up = 101, up = 0, down = 0;
+    while(cur != NULL)
+    {
+        guest_t* g = (guest_t*) cur->data;
+        if(g->to > e->floor && g->to < lowest_up)
+        {
+            up++;
+            lowest_up = g->to;
+        }
+        if(g->to < e->floor && g->to > highest_down)
+        {
+            down++;
+            highest_down = g->to;
+        }
+        
+        cur = cur->next;
+    }
+    if(e->guests_waiting->head == NULL)
+    {
+        e->direction = up > down? 1: -1;
+        printf("Elevator direction now is :%d\n", e->direction);
+        if(e->direction == 1)
+            e->next_floor = lowest_up;
+        else
+            e->next_floor = highest_down;
+    }
+    else 
+    {
+        if (e->direction == 0)
+            e->direction = up > down ? 1 : -1;
+        if (e->direction == 1)
+            e->next_floor = e->next_floor > lowest_up ? lowest_up : e->next_floor;
+        else
+            e->next_floor = e->next_floor < highest_down ? highest_down : e->next_floor;
+    }
+    
     printf("Next stop is calculated to be %d\n", e->next_floor);
-    print_guests((*e));
+    //print_guests((*e));
+    if(!(e->next_floor >=0 && e->next_floor <= 100))
+        print_guests(*e);
     assert(e->next_floor >=0 && e->next_floor <= 100);
 }
 
@@ -144,34 +186,35 @@ void open_door(elevator_t *e)
 {
     printf("%d Door opened at floor %d\n", e->cur_time, e->floor);
     // First loop through the onboard guests and see if anyone wants to get off, remove them and put them in the restuls lists
-    node_t** cur = &e->guests_onboard->head;
-    while((*cur) != NULL)
+    node_t* cur = e->guests_onboard->head;
+    while(cur != NULL)
     {
-        guest_t * g = (guest_t*) (*cur)->data;
+        guest_t * g = (guest_t*) cur->data;
         if(g->to == e->floor)
         {
-            printf("One passenger from floor %d got off, total time: %d\n", g->at, e->cur_time - g->request_time);
+            printf("Guest %d from floor %d got off, total time: %d\n",g->num, g->at, e->cur_time - g->request_time);
             g->off_time = e->cur_time;
             guest_t* guest_off = malloc(sizeof(guest_t));
-            memcpy(guest_off,(*cur)->data, sizeof(guest_t));
-            list_remove_guest(cur);
+            memcpy(guest_off,cur->data, sizeof(guest_t));
+            list_remove_guest(e->guests_onboard, &cur);
+            guest_off->total_time = guest_off->off_time - guest_off->request_time + 1;
             list_append(results, guest_off);
         }
         else
-            *cur = (*cur)->next;
+            cur = cur->next;
     }
     
     // Then loop through the requests and see if anyone could get on. Since we are already stopping here, we
     // don't really care which direction the guest wants to go. This is will probably save time.
-    cur = &e->guests_waiting->head;
-    while((*cur) != NULL)
+    cur = e->guests_waiting->head;
+    while(cur != NULL)
     {
-        guest_t * g = (guest_t*) (*cur)->data;
+        guest_t * g = (guest_t*) cur->data;
         if(g->at == e->floor)
         {
-            printf("One passenger to floor %d got on after waiting for %d seconds.\n", g->to, e->cur_time - g->request_time);
+            printf("Guest %d to floor %d got on after waiting for %d seconds.\n", g->num, g->to, e->cur_time - g->request_time);
             guest_t* new_guest = malloc(sizeof(guest_t));
-            memcpy(new_guest,(*cur)->data, sizeof(guest_t));
+            memcpy(new_guest,cur->data, sizeof(guest_t));
             
             node_t* tmp = e->guests_waiting->head;
             int count = 0;
@@ -184,7 +227,7 @@ void open_door(elevator_t *e)
             printf("Before remove, elements: %d\n", count);
             
             
-            list_remove_guest(cur);
+            list_remove_guest(e->guests_waiting, &cur);
             count = 0;
             tmp = e->guests_waiting->head;
             while(tmp != NULL)
@@ -196,7 +239,7 @@ void open_door(elevator_t *e)
             list_append(e->guests_onboard, new_guest);
         }
         else
-            *cur = (*cur)->next;
+            cur = cur->next;
     }
     e->cur_time +=10;
     if(e->guests_waiting->size != 0)
@@ -234,7 +277,7 @@ void print_guests(elevator_t e)
     while(cur != NULL)
     {
         guest_t* g = (guest_t*) cur->data;
-        printf("Got on floor %d, going to floor %d\n", g->at, g->to);
+        printf("Guest %d, got on floor %d, going to floor %d\n", g->num, g->at, g->to);
         cur = cur->next;
     }
     printf("          ========= guests waiting:%d ===========         \n", e.guests_waiting->size);
@@ -242,7 +285,7 @@ void print_guests(elevator_t e)
     while(cur != NULL)
     {
         guest_t* g = (guest_t*) cur->data;
-        printf("waiting on floor %d, going to floor %d\n", g->at, g->to);
+        printf("Guest %d waiting on floor %d, going to floor %d\n", g->num, g->at, g->to);
         cur = cur->next;
     }
     printf("**************************************************\n");
@@ -285,6 +328,7 @@ int main(int argc, char* argv[])
     // than the current time and calculate the new next floor
     
     int previous_request_time = -1;
+    int n = 0;
     while(fgets(buf, FILE_BUF_SIZE, file))
     {
         int time, from, to;
@@ -313,17 +357,18 @@ int main(int argc, char* argv[])
             }
             calculate_next_floor(&elevator);
             // If the next request is long apart in time from the previous one and the elevator needs to stop
-            while(elevator.cur_time <= time)
+            while(elevator.cur_time < time)
             {
                 elevator.cur_time ++;
                 //Change the current floor
                 elevator.floor += elevator.direction;
                 assert(elevator.floor < 101);
-                printf("Elevator direction is %d\n", elevator.direction);
+                //printf("Elevator direction is %d\n", elevator.direction);
                 printf("Elevator goes to floor %d\n", elevator.floor);
                 //sleep(1);
                 if(elevator.floor == elevator.next_floor)
                 {
+                    //print_guests(elevator);
                     open_door(&elevator);
                     calculate_next_floor(&elevator);
                 }
@@ -336,8 +381,11 @@ int main(int argc, char* argv[])
         guest->at = from;
         guest->to = to;
         guest->off_time = -1;
+        guest->num = n++;
         list_append(elevator.guests_waiting, guest);
-    }
+    }// The end of while loop for reading file
+    
+    
     //print_guests(elevator);
     // Todo calculate solutions for what's left in the queue
     if(elevator.direction == 0)
@@ -362,6 +410,32 @@ int main(int argc, char* argv[])
             assert(list_empty(elevator.guests_onboard) && list_empty(elevator.guests_waiting));
         }
     }
+    
+    //Calculate mean and deviation
+    node_t* cur = results->head;
+    uint32_t sum = 0;
+    int count = 0;
+    guest_t* g;
+    while(cur != NULL)
+    {
+        count++;
+        g = (guest_t*)cur->data;
+        sum+= g->total_time;
+        cur = cur->next;
+    }
+    double mean = sum *1.0 / count;
+    uint32_t devi = 0;
+    cur = results->head;
+    while(cur != NULL)
+    {
+        g = (guest_t*)cur->data;
+        devi += ((g->total_time - mean) * (g->total_time - mean));
+        cur = cur->next;
+    }
+    double standard_devi = sqrt(devi * 1.0 / count);
+    printf("================== Result ==================\n");
+    printf("Average: %f, \t standard deviation: %f\n", mean, standard_devi);
+    printf("============================================\n");
     list_free_guests(&results);
     return 0;
 }

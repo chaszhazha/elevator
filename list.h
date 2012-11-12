@@ -16,7 +16,6 @@ struct list_t;
 typedef struct node_t {
     void *data;
     struct node_t *next;
-    struct list_t* list;
 } node_t;
 
 typedef struct list_t {
@@ -30,7 +29,9 @@ typedef struct
     int request_time;
     int off_time;
     int at;
-    int to;   
+    int to;  
+    int num;
+    int total_time;
 }guest_t;
 
 

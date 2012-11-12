@@ -34,7 +34,6 @@ void list_append(list_t *list, void *data)
 {
 	node_t *new_node = (node_t *)malloc(sizeof(node_t));
 	memset(new_node, 0, sizeof(node_t));
-        new_node->list = list;
 	new_node->data = data;
 	
 	if (list_empty(list)) {
@@ -55,23 +54,41 @@ int list_empty (list_t *list)
 void list_remove_guest(list_t* list, node_t** node)
 {
     //TODO: rewrite this function
+    if(list->head == NULL)
+    {
+        fprintf(stderr,"Error, trying to delete a node from an empty list\n");
+        return;
+    }
     
-    (*node)->list->size--;
+    list->size--;
     node_t * next_node = (*node)->next;
     if((*node)->next != NULL)
     {
-        printf("1\n");
+        //printf("1\n");
         memcpy((*node)->data, (*node)->next->data, sizeof(guest_t));
         (*node)->next = (*node)->next->next;
         free((guest_t*)next_node->data);
         free(next_node);
-        assert((*node)->list->head != NULL);
     }
     else
     {
-        printf("2\n");
+        node_t* tmp = list->head, *pre = NULL;
+        while(tmp->next != NULL)
+        {
+            pre = tmp;
+            tmp = tmp->next;
+        }
+        
+        if(pre == NULL)
+        {
+            // We are deleting the head node and it is the only node
+            // We need to free the head and point the head to null
+            list->head = NULL;
+        }
+        else
+                pre->next = NULL;
         free((guest_t*)(*node)->data);
-        free(*node);
+        free((*node));
         *node = NULL;
     }
     
