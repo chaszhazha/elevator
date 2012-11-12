@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "list.h"
 
@@ -15,12 +16,13 @@ void list_init(list_t **list)
 	memset(*list, 0, sizeof(list_t));
 }
 
-void list_free(list_t **list)
+void list_free_guests(list_t **list)
 {
 	if ((*list) != NULL) { 
 		node_t *curr, *next;
 		for (curr = (*list)->head; curr != NULL; curr = next) {
 			next = curr->next;
+                        free((guest_t*)curr->data);
 			free(curr);
 		}
 		free(*list);
@@ -52,17 +54,22 @@ int list_empty (list_t *list)
 
 void list_remove_guest(node_t** node)
 {
+    (*node)->list->size--;
     node_t * next_node = (*node)->next;
     if((*node)->next != NULL)
     {
+        printf("1\n");
         memcpy((*node)->data, (*node)->next->data, sizeof(guest_t));
         (*node)->next = (*node)->next->next;
+        free((guest_t*)next_node->data);
         free(next_node);
+        assert((*node)->list != NULL);
     }
     else
     {
+        free((guest_t*)(*node)->data);
         free(*node);
         *node = NULL;
     }
-    (*node)->list->size--;
+    
 }

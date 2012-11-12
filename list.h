@@ -30,8 +30,7 @@ typedef struct
     int request_time;
     int off_time;
     int at;
-    int to;
-    int status;    
+    int to;   
 }guest_t;
 
 
@@ -44,7 +43,7 @@ void list_init(list_t **list);
  * Frees all memory explicitly allocated by the list and sets the 
  * pointer to null.
  */
-void list_free(list_t **list);
+void list_free_guests(list_t **list);
 
 /**
  * Inserts a new node holding the data at the end of the list

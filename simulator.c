@@ -6,11 +6,6 @@
 #include <fcntl.h>
 #include "list.h"
 
-//**** Guest elevator status*****
-#define WAITING 0
-#define ON 1
-#define OFF 2
-//*******************************
 #define FILE_BUF_SIZE 1024
 
 list_t* results;
@@ -29,7 +24,111 @@ typedef struct
 
 void calculate_next_floor(elevator_t * e)
 {
-    // calculate the next_floor and the movement direction for the elevator
+    printf("Calculating next floor\n");
+    if(list_empty(e->guests_onboard) && list_empty(e->guests_waiting))
+    {
+        e->direction = 0;
+        e->next_floor = e->floor;
+        return;
+    }
+    
+    int up_up = 0, down_down = 0, up_down = 0, down_up = 0; // counting variables for how many requests happen above the current floor and below
+    int lowest_up_up = 101, lowest_up_down = 101, highest_down_down = -1, highest_down_up = -1;
+    node_t* cur = e->guests_waiting->head;
+    while (cur != NULL) {
+        guest_t* g = (guest_t*) cur->data;
+
+        if (g->at > e->floor && g->to > g->at) 
+        {
+            up_up++;
+            if (g->at < lowest_up_up)
+                lowest_up_up = g->at;
+        } 
+        else if (g->at > e->floor && g->to < g->at)
+        {
+            up_down++;
+            if (g->at < lowest_up_down)
+                lowest_up_down = g->at;
+        } 
+        else if (g->at < e->floor && g->to < g->at) 
+        {
+            down_down++;
+            if (g->at > highest_down_down)
+                highest_down_down = g->at;
+        } 
+        else if (g->at < e->floor && g->to > g->at) 
+        {
+            down_up++;
+            if (g->at > highest_down_up)
+                highest_down_up = g->at;
+        }
+        cur = cur->next;
+    }
+    
+    if(e->direction == 0)
+    {
+        // This means that the elevator is empty
+        assert(list_empty(e->guests_onboard));
+        assert(!list_empty(e->guests_waiting));
+        
+        if(up_up + up_down > down_down + down_up)
+        {
+            printf("Elevator is going up\n");
+            e->direction = 1;
+        }
+        else
+        {
+            printf("Elevator is going down\n");
+            e->direction = -1;
+        }
+        
+        if(e->direction == 1)
+            e->next_floor = up_up != 0 ? lowest_up_up: lowest_up_down;
+        else
+            e->next_floor = down_down !=0 ? highest_down_down: highest_down_up;
+    }
+    
+    else if(e->direction == 1)
+    {
+        if(up_up + up_down > 0)
+        {
+            if(up_up > 0)
+                e->next_floor = lowest_up_up;
+            else
+                e->next_floor = lowest_up_down;
+        }
+        else
+        {
+            printf("Elevator changes direction, going down\n");
+            e->direction = -1;
+            if(down_down > 0)
+                e->next_floor = highest_down_down;
+            else
+                e->next_floor = highest_down_up;
+        }
+    }
+    else
+    {
+        if(down_down + down_up > 0)
+        {
+            if(down_down > 0)
+                e->next_floor = highest_down_down;
+            else
+                e->next_floor = highest_down_up;
+        }
+        else
+        {
+            printf("Elevator changes direction, going up\n");
+            e->direction = 1;
+            if(up_up > 0)
+                e->next_floor = lowest_up_up;
+            else
+                e->next_floor = lowest_up_down;
+        }
+    }
+    printf("Next stop is calculated to be %d\n", e->next_floor);
+    print_guests((*e));
+    assert(e->next_floor >=0 && e->next_floor <= 100);
 }
 
 /**
@@ -40,44 +139,92 @@ void calculate_next_floor(elevator_t * e)
  * @param argv
  * @return 
  */
-void open(elevator_t *e)
+void open_door(elevator_t *e)
 {
+    printf("%d Door opened at floor %d\n", e->cur_time, e->floor);
     // First loop through the onboard guests and see if anyone wants to get off, remove them and put them in the restuls lists
-    node_t* cur = e->guests_onboard->head;
-    while(cur != NULL)
+    node_t** cur = &e->guests_onboard->head;
+    while((*cur) != NULL)
     {
-        guest_t * g = (guest_t*) cur->data;
+        guest_t * g = (guest_t*) (*cur)->data;
         if(g->to == e->floor)
         {
+            printf("One passenger from floor %d got off, total time: %d\n", g->at, e->cur_time - g->request_time);
             g->off_time = e->cur_time;
             guest_t* guest_off = malloc(sizeof(guest_t));
-            memcpy(guest_off,cur->data, sizeof(guest_t));
+            memcpy(guest_off,(*cur)->data, sizeof(guest_t));
             list_remove_guest(cur);
             list_append(results, guest_off);
         }
         else
-            cur = cur->next;
+            *cur = (*cur)->next;
     }
     
     // Then loop through the requests and see if anyone could get on. Since we are already stopping here, we
     // don't really care which direction the guest wants to go. This is will probably save time.
-    node_t* cur = e->guests_waiting->head;
-    while(cur != NULL)
+    cur = &e->guests_waiting->head;
+    while((*cur) != NULL)
     {
-        guest_t * g = (guest_t*) cur->data;
-        if(g->from == e->floor)
+        guest_t * g = (guest_t*) (*cur)->data;
+        if(g->at == e->floor)
         {
+            printf("One passenger to floor %d got on after waiting for %d seconds.\n", g->to, e->cur_time - g->request_time);
             guest_t* new_guest = malloc(sizeof(guest_t));
-            memcpy(new_guest,cur->data, sizeof(guest_t));
+            memcpy(new_guest,(*cur)->data, sizeof(guest_t));
             list_remove_guest(cur);
             list_append(e->guests_onboard, new_guest);
         }
         else
-            cur = cur->next;
+            *cur = (*cur)->next;
     }
     e->cur_time +=10;
+    
+    printf("\n");
 }
 
+/**
+ * Return whether there are requests happening on the current floor.
+ * This function is called before calculate_next_floor when calculate_next_floor is called without
+ * calling open_door() beforehand. This is the scenario where the elevator is not moving and then has a 
+ * request. If there are requests happening on the same floor then it should let the new guests in
+ * before calculation the new movement parameters of the elevator
+ * @param e
+ * @return 
+ */
+int need_to_open(elevator_t e)
+{
+    node_t* cur = e.guests_waiting->head;
+    while(cur != NULL)
+    {
+        guest_t* g = (guest_t*)cur->data;
+        if(g->at == e.floor)
+            return 1;
+        cur = cur->next;
+    }
+    return 0;
+}
+
+void print_guests(elevator_t e)
+{
+    printf("******************** guests *********************\n");
+    node_t* cur = e.guests_onboard->head;
+    printf("          ========= guests onboard ===========         \n");
+    while(cur != NULL)
+    {
+        guest_t* g = (guest_t*) cur->data;
+        printf("Got on floor %d, going to floor %d\n", g->at, g->to);
+        cur = cur->next;
+    }
+    printf("          ========= guests waiting ===========         \n");
+    cur = e.guests_waiting->head;
+    while(cur != NULL)
+    {
+        guest_t* g = (guest_t*) cur->data;
+        printf("waiting on floor %d, going to floor %d\n", g->at, g->to);
+        cur = cur->next;
+    }
+    printf("**************************************************\n");
+}
 
 int main(int argc, char* argv[])
 {
@@ -97,11 +244,11 @@ int main(int argc, char* argv[])
     char buf[FILE_BUF_SIZE];
     // Consider using fgets
     
-    int cur_floor = 1;
     elevator_t elevator;
     elevator.floor = 1;
     elevator.next_floor = -1;
     elevator.cur_time = 0;
+    elevator.direction = 0;
     list_init(&elevator.guests_onboard);
     list_init(&elevator.guests_waiting);
     list_init(&results);
@@ -115,6 +262,7 @@ int main(int argc, char* argv[])
     // than the following request time, In this case just read through all the records until the request time is larger
     // than the current time and calculate the new next floor
     
+    int previous_request_time = -1;
     while(fgets(buf, FILE_BUF_SIZE, file))
     {
         int time, from, to;
@@ -123,35 +271,75 @@ int main(int argc, char* argv[])
         if(from ==  to || from < 0 || to > 100)
         {
             // Ignore brattish requests
+            fprintf(stderr, "Bad request\n");
             continue;
         }
-        if(time > elevator.cur_time)
+        if(previous_request_time == -1)
+            previous_request_time = time;
+        if(time > elevator.cur_time || previous_request_time < time)
         {
-            // Calculate the next stop floor based on the requests, at this moment, the elevator has not moved floor yet
+            previous_request_time = time;
+            // In order to prevent oscillation, we only calculate the next stop floor when:
+            // 1. the elevator is empty
+            // 2. we processed some request
+            // We don't change the course of the movement of the elevator when we have new requests.
+            if(elevator.direction == 0)
+            {
+                //First go through the request list and see if there's anyone requesting from the current floor
+                if(need_to_open(elevator))
+                    open_door(&elevator);  
+            }
             calculate_next_floor(&elevator);
             // If the next request is long apart in time from the previous one and the elevator needs to stop
             while(elevator.cur_time <= time)
             {
                 elevator.cur_time ++;
                 //Change the current floor
-                cur_floor += elevator.direction;
-                if(cur_floor == elevator.next_floor)
+                elevator.floor += elevator.direction;
+                assert(elevator.floor < 101);
+                printf("Elevator direction is %d\n", elevator.direction);
+                printf("Elevator goes to floor %d\n", elevator.floor);
+                //sleep(1);
+                if(elevator.floor == elevator.next_floor)
                 {
-                    open(&elevator);
+                    open_door(&elevator);
                     calculate_next_floor(&elevator);
                 }
             }
         }
-        
+        previous_request_time = time;
         guest_t * guest = malloc(sizeof(guest_t));
         memset(guest, 0, sizeof(guest_t));
         guest->request_time = time;
         guest->at = from;
         guest->to = to;
         guest->off_time = -1;
-        guest->status = WAITING;
-        list_append(&elevator.guests_waiting, guest);
+        list_append(elevator.guests_waiting, guest);
     }
+    print_guests(elevator);
     // Todo calculate solutions for what's left in the queue
+    if(elevator.direction == 0)
+    {
+        //First go through the request list and see if there's anyone requesting from the current floor
+        if (need_to_open(elevator))
+            open_door(&elevator);
+        calculate_next_floor(&elevator);
+    }
+    while(!list_empty(elevator.guests_onboard) || !list_empty(elevator.guests_waiting))
+    {
+        while(elevator.floor != elevator.next_floor)
+        {
+            elevator.floor += elevator.direction;
+            printf("Elevator goes to floor %d\n", elevator.floor);
+            elevator.cur_time++;
+        }
+        open_door(&elevator);
+        calculate_next_floor(&elevator);
+        if(elevator.direction == 0)
+        {
+            assert(list_empty(elevator.guests_onboard) && list_empty(elevator.guests_waiting));
+        }
+    }
+    list_free_guests(&results);
     return 0;
 }
