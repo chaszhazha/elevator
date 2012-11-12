@@ -135,6 +135,13 @@ void calculate_next_floor(elevator_t * e)
     while(cur != NULL)
     {
         guest_t* g = (guest_t*) cur->data;
+        /*
+        if(e->cur_time - g->request_time > 1000)
+        {
+            e->direction = g->to > e->floor ? 1 :-1;
+            e->next_floor = g->to;
+            return;
+        }*/
         if(g->to > e->floor && g->to < lowest_up)
         {
             up++;
