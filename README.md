@@ -1,6 +1,6 @@
 <h1>Reprospection after 3 years</h1>
 
-This is a programming excercise I did a few years ago as part of the interview process for a startup company. The excercise was to write an algorithm for four elevators, and the goal is to make sure each person's wait time (either how long they have to wait to get on to an elevator, or for them to get to their desired floor, I can't remember any more....) is as low as possible.
+This is a programming excercise I did a few years ago back in 2012 as part of the interview process for a startup company. The excercise was to write an algorithm for four elevators, and the goal is to make sure each person's wait time (either how long they have to wait to get on to an elevator, or for them to get to their desired floor, I can't remember any more....) is as low as possible.
 
 It is easy to see that there could be a pretty deterministic approach for this problem, however, I chose to go with a multithreaded approach, which at the time seemed like a good idea, but on hind sight I was over complicating things, and although it appeared to be a smart way of approaching this, it did not yield a better solution and gave you different results each time you run the program with the same input set.
 
