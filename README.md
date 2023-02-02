@@ -1,4 +1,4 @@
-<h1>Reprospection after 3 years</h1>
+<h1>Retrospection after 3 years</h1>
 
 This is a programming excercise I did a few years ago back in 2012 as part of the interview process for a startup company. The excercise was to write an algorithm for four elevators, and the goal is to make sure each person's wait time (either how long they have to wait to get on to an elevator, or for them to get to their desired floor, I can't remember any more....) is as low as possible.
 
